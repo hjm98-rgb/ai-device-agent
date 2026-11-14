@@ -181,7 +181,7 @@ final class Store: ObservableObject {
         var full = ""
         var think = ""
 
-        for await ev in Net.stream(base: base, key: key, model: mdl, messages: messages) {
+        for try await ev in Net.stream(base: base, key: key, model: mdl, messages: messages) {
             switch ev {
             case .thinking(let t):
                 think += t
