@@ -181,22 +181,29 @@ final class Store: ObservableObject {
         var full = ""
         var think = ""
 
-        for try await ev in Net.stream(base: base, key: key, model: mdl, messages: messages) {
-            switch ev {
-            case .thinking(let t):
-                think += t
-                mutateMessage(replyID) { $0.thinking = think }
-            case .content(let c):
-                full += c
-                mutateMessage(replyID) {
-                    let (clean, _) = Store.splitAction(full)
-                    $0.text = clean.isEmpty ? full : clean
+        do {
+            for try await ev in Net.stream(base: base, key: key, model: mdl, messages: messages) {
+                switch ev {
+                case .thinking(let t):
+                    think += t
+                    mutateMessage(replyID) { $0.thinking = think }
+                case .content(let c):
+                    full += c
+                    mutateMessage(replyID) {
+                        let (clean, _) = Store.splitAction(full)
+                        $0.text = clean.isEmpty ? full : clean
+                    }
+                case .error(let msg):
+                    mutateMessage(replyID) {
+                        $0.streaming = false
+                        $0.text = $0.text.isEmpty ? "出错了：\(msg)" : $0.text
+                    }
                 }
-            case .error(let msg):
-                mutateMessage(replyID) {
-                    $0.streaming = false
-                    $0.text = $0.text.isEmpty ? "出错了：\(msg)" : $0.text
-                }
+            }
+        } catch {
+            mutateMessage(replyID) {
+                $0.streaming = false
+                if $0.text.isEmpty { $0.text = "出错了：\(error.localizedDescription)" }
             }
         }
 
