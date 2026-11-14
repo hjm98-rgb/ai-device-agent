@@ -589,6 +589,10 @@ struct KeyCard: View {
                     _ = await store.verifyKey()
                     checking = false
                 }
+                Task {
+                    try? await Task.sleep(nanoseconds: 14_000_000_000)
+                    checking = false
+                }
             } label: {
                 HStack(spacing: 6) {
                     if checking { ProgressView().tint(.white) }

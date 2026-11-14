@@ -324,14 +324,16 @@ final class Store: ObservableObject {
 
     func verifyKey() async -> Bool {
         do {
-            _ = try await Net.chat(base: apiBase, key: apiKey, model: model,
-                                   messages: [OAIMessage(role: "user", content: "只回复 ok")])
+            try await Net.verify(base: apiBase, key: apiKey)
             verified = true
             usingFree = false
+            keyIssue = false
+            toast = "校验通过"
             save()
             return true
         } catch {
             verified = false
+            keyIssue = true
             toast = "校验失败：\(error.localizedDescription)"
             return false
         }

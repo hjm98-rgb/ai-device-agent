@@ -120,4 +120,40 @@ enum Net {
             continuation.onTermination = { _ in task.cancel() }
         }
     }
+
+    /// 轻量探活：只要接口能列出模型就说明地址和密钥没问题，最多等 12 秒
+    static func verify(base: String, key: String) async throws {
+        let trimmed = base.trimmingCharacters(in: .whitespacesAndNewlines)
+        let root = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
+        var candidates: [String] = []
+        if root.hasSuffix("/v1") {
+            candidates = [root + "/models", String(root.dropLast(3)) + "/models"]
+        } else {
+            candidates = [root + "/v1/models", root + "/models"]
+        }
+        var lastError: Error = AIError.badURL
+        for c in candidates {
+            guard let u = URL(string: c) else { continue }
+            var req = URLRequest(url: u)
+            req.timeoutInterval = 12
+            if !key.isEmpty { req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
+            do {
+                let (data, resp) = try await URLSession.shared.data(for: req)
+                guard let http = resp as? HTTPURLResponse else { throw AIError.empty }
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    throw AIError.http(http.statusCode, "密钥被拒绝")
+                }
+                if http.statusCode == 200 {
+                    _ = data
+                    return
+                }
+                lastError = AIError.http(http.statusCode, "接口返回异常")
+            } catch let e as AIError {
+                lastError = e
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
 }
