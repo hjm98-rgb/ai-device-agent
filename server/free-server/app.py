@@ -70,8 +70,7 @@ async def models():
 
     out = []
     for mid, meta in CATALOG.items():
-        prefix = mid.split(":")[0]
-        present = any(a == mid or a.startswith(prefix) for a in available)
+        present = any(a == mid for a in available)
         out.append({
             "id": mid,
             "name": meta["name"],

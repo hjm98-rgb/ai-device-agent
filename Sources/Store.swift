@@ -51,7 +51,7 @@ final class Store: ObservableObject {
         pcURL = d.string(forKey: "pcURL") ?? ""
         cloudURL = d.string(forKey: "cloudURL") ?? ""
         wdaURL = d.string(forKey: "wdaURL") ?? "http://127.0.0.1:8100"
-        freeBase = d.string(forKey: "freeBase") ?? ""
+        freeBase = d.string(forKey: "freeBase") ?? "https://blog-five-convicted-kentucky.trycloudflare.com"
         usingFree = d.bool(forKey: "usingFree")
         if let raw = d.string(forKey: "target"), let t = DeviceTarget(rawValue: raw) { target = t }
         if let raw = d.string(forKey: "channel"), let c = ActionChannel(rawValue: raw) { channel = c }
