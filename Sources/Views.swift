@@ -279,6 +279,18 @@ struct ComposerBar: View {
                     .background(Capsule().fill(Color(red: 0.36, green: 0.85, blue: 0.55).opacity(0.18)))
                     .foregroundStyle(Color(red: 0.6, green: 0.95, blue: 0.75))
                 }
+                if !store.verified && !store.usingFree {
+                    Button { showKey = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "key.fill").font(.system(size: 11))
+                            Text("填密钥").font(.system(size: 11, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color(red: 1.0, green: 0.8, blue: 0.3).opacity(0.16)))
+                        .foregroundStyle(Color(red: 1.0, green: 0.85, blue: 0.45))
+                    }
+                }
                 Spacer()
             }
             .padding(.horizontal, 16)
@@ -329,7 +341,7 @@ struct ChatView: View {
     @State private var showDevice = false
     @State private var showFree = false
     @State private var showSettings = false
-    @State private var showLimitAlert = false
+    @State private var showKey = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -338,9 +350,6 @@ struct ChatView: View {
                     ForEach(store.currentConversation?.messages ?? []) { m in
                         MessageRow(message: m, expanded: $expanded)
                             .id(m.id)
-                    }
-                    if needsKey {
-                        KeyCard()
                     }
                 }
                 .padding(.horizontal, 16)
@@ -384,6 +393,18 @@ struct ChatView: View {
                     .padding(.vertical, 6)
                     .background(Capsule().fill(Color(red: 0.36, green: 0.85, blue: 0.55).opacity(0.18)))
                     .foregroundStyle(Color(red: 0.6, green: 0.95, blue: 0.75))
+                }
+                if !store.verified && !store.usingFree {
+                    Button { showKey = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "key.fill").font(.system(size: 11))
+                            Text("填密钥").font(.system(size: 11, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color(red: 1.0, green: 0.8, blue: 0.3).opacity(0.16)))
+                        .foregroundStyle(Color(red: 1.0, green: 0.85, blue: 0.45))
+                    }
                 }
                 Spacer()
                 Button { showSettings = true } label: {
@@ -749,7 +770,7 @@ struct FreeZoneView: View {
                     if !store.freeModels.isEmpty {
                         ForEach(store.freeModels) { m in
                             Button {
-                                store.useFreeModel(m)
+                                if m.ready { store.useFreeModel(m) }
                             } label: {
                                 HStack(spacing: 12) {
                                     Image(systemName: "cpu")
@@ -764,7 +785,14 @@ struct FreeZoneView: View {
                                             .font(.caption).foregroundStyle(.white.opacity(0.45))
                                     }
                                     Spacer()
-                                    Text(m.size).font(.caption2).foregroundStyle(.white.opacity(0.35))
+                                    VStack(alignment: .trailing, spacing: 3) {
+                                        Text(m.ready ? "可用" : "未下载")
+                                            .font(.caption2)
+                                            .foregroundStyle(m.ready
+                                                             ? Color(red: 0.55, green: 0.95, blue: 0.7)
+                                                             : .white.opacity(0.3))
+                                        Text(m.size).font(.caption2).foregroundStyle(.white.opacity(0.35))
+                                    }
                                 }
                                 .padding(13)
                                 .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.05)))
@@ -786,7 +814,10 @@ struct FreeZoneView: View {
             .background(Color(red: 0.06, green: 0.07, blue: 0.11))
             .navigationTitle("免费模型")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear { server = store.freeBase }
+            .onAppear {
+                server = store.freeBase
+                if server.isEmpty == false { Task { await store.loadFreeModels() } }
+            }
         }
         .presentationDetents([.medium, .large])
         .preferredColorScheme(.dark)
@@ -852,5 +883,30 @@ struct SettingsView: View {
             .onDisappear { store.save() }
         }
         .presentationDetents([.large])
+    }
+}
+
+// MARK: - 密钥单独入口
+
+struct KeySheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                KeyCard()
+                    .padding(16)
+            }
+            .background(Color(red: 0.06, green: 0.07, blue: 0.11))
+            .navigationTitle("AI 密钥")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .preferredColorScheme(.dark)
     }
 }

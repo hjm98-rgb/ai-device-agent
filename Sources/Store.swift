@@ -6,6 +6,7 @@ struct FreeModel: Identifiable, Codable {
     var name: String
     var note: String = ""
     var size: String = ""
+    var ready: Bool = false
 }
 
 @MainActor
@@ -37,6 +38,7 @@ final class Store: ObservableObject {
     @Published var freeModels: [FreeModel] = []
     @Published var loadingFree: Bool = false
     @Published var usingFree: Bool = false
+    @Published var keyIssue: Bool = false
 
     private let d = UserDefaults.standard
     private var streamTask: Task<Void, Never>?
@@ -180,6 +182,7 @@ final class Store: ObservableObject {
 
         var full = ""
         var think = ""
+        var failed = false
 
         do {
             for try await ev in Net.stream(base: base, key: key, model: mdl, messages: messages) {
@@ -194,9 +197,10 @@ final class Store: ObservableObject {
                         $0.text = clean.isEmpty ? full : clean
                     }
                 case .error(let msg):
+                    failed = true
                     mutateMessage(replyID) {
                         $0.streaming = false
-                        $0.text = $0.text.isEmpty ? "出错了：\(msg)" : $0.text
+                        if $0.text.isEmpty { $0.text = "出错了：\(msg)" }
                     }
                 }
             }
@@ -209,8 +213,8 @@ final class Store: ObservableObject {
 
         mutateMessage(replyID) { $0.streaming = false }
 
-        if full.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && think.isEmpty {
-            mutateMessage(replyID) { $0.text = "这次没有收到内容，检查一下密钥或换个模型试试。" }
+        if !failed && full.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && think.isEmpty {
+            mutateMessage(replyID) { $0.text = "这个模型这次没吐字，换一个再试。" }
             save()
             return
         }
@@ -356,10 +360,17 @@ final class Store: ObservableObject {
                 return FreeModel(id: id,
                                  name: (item["name"] as? String) ?? id,
                                  note: (item["note"] as? String) ?? "",
-                                 size: (item["size"] as? String) ?? "")
+                                 size: (item["size"] as? String) ?? "",
+                                 ready: (item["ready"] as? Bool) ?? false)
             }
             d.set(freeBase, forKey: "freeBase")
-            if freeModels.isEmpty { toast = "服务器上还没有加载模型" }
+            if freeModels.isEmpty {
+                toast = "服务器上还没有加载模型"
+            } else if usingFree || !verified {
+                if let first = freeModels.first(where: { $0.ready }) {
+                    useFreeModel(first)
+                }
+            }
         } catch {
             toast = "连不上免费服务器：\(error.localizedDescription)"
         }
@@ -371,6 +382,7 @@ final class Store: ObservableObject {
         model = m.id
         usingFree = true
         verified = true
+        keyIssue = false
         save()
         toast = "已切到免费模型 \(m.name)"
     }
