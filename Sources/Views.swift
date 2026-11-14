@@ -255,6 +255,7 @@ struct ComposerBar: View {
     @Binding var showDevice: Bool
     @Binding var showFree: Bool
     @State private var text: String = ""
+    @State private var showKey = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -329,6 +330,7 @@ struct ComposerBar: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 10)
         }
+        .sheet(isPresented: $showKey) { KeySheet() }
     }
 }
 
