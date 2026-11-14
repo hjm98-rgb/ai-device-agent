@@ -342,6 +342,7 @@ struct ChatView: View {
     @State private var showFree = false
     @State private var showSettings = false
     @State private var showKey = false
+    @State private var showKey = false
 
     var body: some View {
         ScrollViewReader { proxy in
