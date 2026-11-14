@@ -1,0 +1,46 @@
+name: build-wda
+
+on:
+  workflow_dispatch:
+
+jobs:
+  wda:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 拉取 WebDriverAgent
+        run: |
+          git clone --depth 1 https://github.com/appium/WebDriverAgent.git wda
+
+      - name: 编译 WDA Runner
+        run: |
+          set -o pipefail
+          cd wda
+          xcodebuild build-for-testing \
+            -project WebDriverAgent.xcodeproj \
+            -scheme WebDriverAgentRunner \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath "$PWD/dd" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" | tail -40
+
+      - name: 打包 ipa
+        run: |
+          APP=$(find wda/dd -name "WebDriverAgentRunner-Runner.app" -type d | head -1)
+          echo "found: $APP"
+          mkdir -p out/Payload
+          cp -R "$APP" out/Payload/
+          cd out
+          zip -qry ../WebDriverAgent-unsigned.ipa Payload
+          ls -lh ../WebDriverAgent-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgent-ipa
+          path: WebDriverAgent-unsigned.ipa
+          retention-days: 90
