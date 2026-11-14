@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+pyautogui
+pyperclip
+pillow
+mss

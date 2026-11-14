@@ -1,0 +1,11 @@
+name: build-agent-image
+
+on: workflow_dispatch
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 构建云端代理镜像
+        run: docker build -f server/cloud/Dockerfile -t ai-agent-cloud .

@@ -1,0 +1,50 @@
+name: build-ipa
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  unsigned-ipa:
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 生成工程
+        run: xcodegen generate
+
+      - name: 编译
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project AIAgent.xcodeproj \
+            -target AIAgent \
+            -sdk iphoneos \
+            -configuration Release \
+            CONFIGURATION_BUILD_DIR="$PWD/build/Release" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: 打包成 ipa
+        run: |
+          mkdir -p payload/Payload
+          cp -R build/Release/AIAgent.app payload/Payload/
+          cd payload
+          zip -qry ../AIAgent-unsigned.ipa Payload
+          cd ..
+          ls -lh AIAgent-unsigned.ipa
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIAgent-ipa
+          path: AIAgent-unsigned.ipa
+          retention-days: 90
