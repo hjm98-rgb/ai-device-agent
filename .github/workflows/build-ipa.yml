@@ -1,50 +1,33 @@
-name: build-ipa
-
+name: Build IPA
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
-
 jobs:
-  unsigned-ipa:
-    runs-on: macos-latest
-    timeout-minutes: 40
+  build:
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
-      - name: 安装 XcodeGen
-        run: brew install xcodegen
-
-      - name: 生成工程
-        run: xcodegen generate
-
-      - name: 编译
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project AIAgent.xcodeproj \
-            -target AIAgent \
-            -sdk iphoneos \
-            -configuration Release \
-            CONFIGURATION_BUILD_DIR="$PWD/build/Release" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" \
-            DEVELOPMENT_TEAM=""
-
-      - name: 打包成 ipa
-        run: |
-          mkdir -p payload/Payload
-          cp -R build/Release/AIAgent.app payload/Payload/
-          cd payload
-          zip -qry ../AIAgent-unsigned.ipa Payload
-          cd ..
-          ls -lh AIAgent-unsigned.ipa
-
-      - name: 上传产物
-        uses: actions/upload-artifact@v4
         with:
-          name: AIAgent-ipa
-          path: AIAgent-unsigned.ipa
-          retention-days: 90
+          submodules: recursive
+          fetch-depth: 0
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Generate project
+        run: |
+          ls -la
+          xcodegen generate --spec project.yml
+      - name: Build unsigned ipa
+        run: |
+          set -x
+          PROJ=$(find . -maxdepth 2 -name "*.xcodeproj" | head -1)
+          SCHEME=$(xcodebuild -project "$PROJ" -list 2>/dev/null | awk '/Schemes:/{f=1;next} f&&NF&&!/-/{print $1; exit}')
+          echo "SCHEME=$SCHEME"
+          xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+          APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -1)
+          mkdir -p Payload && cp -R "$APP" Payload/
+          zip -qry unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ipa
+          path: unsigned.ipa
